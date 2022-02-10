@@ -11,4 +11,4 @@ Pure C piecewise jerk path optimizer of Apollo for S-L Planning
 
 - [x] Construct a typical QP demo using the sparse_matrix_conversion Tool for creating sparse matrix.
 
-- [] Perform  piecewise_jerk_path_optimizer task in pure c code.
+- [ ] Perform  piecewise_jerk_path_optimizer task in pure c code.
