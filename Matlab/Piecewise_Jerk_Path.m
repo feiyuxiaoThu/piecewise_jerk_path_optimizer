@@ -1,6 +1,6 @@
 % Piecewise Jerk Path Problem
 clc;
-clear all;
+clear;
 %% Parameters
 
 global Nstep; % Num of Points
@@ -13,26 +13,30 @@ global v_ini;
 
 global Maxspeed Accmax Jerklimit;
 
+global safe_zone;
+
 % QP Problem settings
 global w1 w2 w3;
 
 
-Nstep = 11;
-s_tol = 30;
+Nstep = 51;
+s_tol = 20;
 Nstep3 = 3*Nstep;
 delta_s = s_tol/(Nstep-1);
 
-v_ini = 15;
+v_ini = 0.01;
 
 w1 = 20;
 w2 = 10;
 w3 = 2;
 
-ref_v = 20; % ref velocity;
+ref_v = 0; % ref velocity;
 
-Maxspeed = 33.3;
-Accmax = 5;
-Jerklimit =50*delta_s;
+Maxspeed = 1.5;
+Accmax = 2;
+Jerklimit =5*delta_s;
+
+safe_zone = 0.5;
 
 %% Compute l_bound up and down
 l_upbound = zeros(Nstep,1);
@@ -40,9 +44,31 @@ l_downbound = zeros(Nstep,1);
 
 s_sample = linspace(0,s_tol,Nstep);
 
+% generate bounds
+
+% for i = 1:Nstep
+%     l_upbound(i) = -sqrt(35^2-s_sample(i)^2) + 35;
+%     l_downbound(i) =-sqrt(39^2 - s_sample(i)^2) + 35;
+% end
+
 for i = 1:Nstep
-    l_upbound(i) = -sqrt(35^2-s_sample(i)^2) + 35;
-    l_downbound(i) = -sqrt(39^2 - s_sample(i)^2) + 35;
+    if i < Nstep/3
+        l_upbound(i) = 5;
+    elseif i<2*Nstep/3 && i >= Nstep/3
+        l_upbound(i) = 2;
+    else
+        l_upbound(i) = 6;
+    end
+end
+
+for i = 1:Nstep
+    if i < Nstep/3-2
+        l_downbound(i) = 1;
+    elseif i<2*Nstep/3+2 && i >= Nstep/3-2
+        l_downbound(i) = -2;
+    else
+        l_downbound(i) = 3;
+    end
 end
 
 
@@ -50,6 +76,9 @@ end
 
 ref_x = zeros(Nstep,1);
 ref_x = 0.3*l_upbound + 0.7*l_downbound;
+
+x0 = zeros(Nstep3,1);
+x0(1:Nstep) = ref_x;
 
 %% Constrcuct QP constraints Matrix
 % P matrix in dense format 
@@ -101,14 +130,16 @@ for i = Nstep:2*Nstep-2
   
 end
 %Part 3
-Aeq(2*Nstep-1,1) = 1.0;
-Aeq(2*Nstep,Nstep+1) = 1.0;
-Aeq(2*Nstep+1,2*Nstep+1) =1.0;
+Aeq(2*Nstep-1,1) = 1;
+Aeq(2*Nstep,Nstep+1) = 1;
+Aeq(2*Nstep+1,2*Nstep+1) = 1;
 
 % Beq
 beq = zeros(2*Nstep+1,1);
 
+beq(2*Nstep-1) = ref_x(1);
 beq(2*Nstep) = v_ini;
+beq(2*Nstep+1) = 0;
 
 % A
 
@@ -141,12 +172,13 @@ end
 
 ul = zeros(8*Nstep-2,1); % lb < A < ub both in ul!
 for i = 1:Nstep
-    ul(i) = l_upbound(i);
-    ul(i+4*Nstep-1) = -l_downbound(i);
+    ul(i) = l_upbound(i)+safe_zone;
+    ul(i+4*Nstep-1) = -l_downbound(i)-safe_zone;
 end
 
 for i =Nstep+1:2*Nstep
     ul(i) = Maxspeed;
+    ul(i+4*Nstep-1) = Maxspeed;
 end
 
 for i = 2*Nstep+1:3*Nstep
@@ -159,8 +191,9 @@ for i = 3*Nstep+1:4*Nstep-1
     ul(i+4*Nstep-1) = Jerklimit;
 end
 
-[x,fval,exitflag,output,lambda] = quadprog(P,c,A,ul,Aeq,beq)
-
+opts = optimoptions('quadprog','Algorithm','active-set','Display','iter','Maxiterations',200);
+%opts = optimoptions(opts,'Maxiterations',200);
+[x,fval,exitflag,output,lambda] = quadprog(P,c,A,ul,Aeq,beq,[],[],x0,opts);
 
 
 
@@ -170,6 +203,8 @@ hold on;
 plot(s_sample,l_downbound);
 hold on;
 plot(s_sample,ref_x,'*');
+hold on;
+plot(s_sample,x(1:Nstep));
 
 
 
