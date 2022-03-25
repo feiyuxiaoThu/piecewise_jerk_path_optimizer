@@ -1,7 +1,7 @@
 #include "qpSWIFT.h"
 #include "Matrices.h"
 
-int main(int argc, char *argv[])
+int runqp(int argc, char *argv[])
 {
 
 	QP *myQP;
