@@ -4,7 +4,7 @@
 /*
  * Type definitions
  */
-typedef int c_int;
+typedef long c_int;
 typedef double c_float;
 
 enum MatFormat {RowMajor, ColMajor};
