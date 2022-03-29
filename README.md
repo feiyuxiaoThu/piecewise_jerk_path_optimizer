@@ -9,12 +9,17 @@ Pure C piecewise jerk path optimizer of Apollo for S-L Planning
 
 ## Results
 
-+ Matlab quadprog problem
++ Matlab quadprog path problem
 
 ![](./Matlab/matlab.png)
+
++ Matlab quadprog speed problem
+
+  ![](./Matlab/QP_speed.png)
 
 ## Dev Tasks
 
 - [x] Construct a typical QP demo using the sparse_matrix_conversion Tool for creating sparse matrix.
 - [x] Construct a typical Piecewise_Jerk_Path QP problem using Matlab quadprog function.
+- [x] Construct a typical Piecewise_Jerk_Speed QP problem using Matlab quadprog function.
 - [ ] Perform  piecewise_jerk_path_optimizer task in pure c code.
