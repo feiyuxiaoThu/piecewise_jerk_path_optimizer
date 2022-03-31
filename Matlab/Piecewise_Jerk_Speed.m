@@ -7,9 +7,9 @@ st_seg_num = 2;
 
 % QP Weights
 global w1 w2 w3
-w1 = 0.0005; % error with DP ST results
+w1 = 0.5; % error with DP ST results
 w2 = 1; % acc
-w3 = 1e3; %  jerk
+w3 = 1e2; %  jerk
 
 global ST_Results
 ST_Results = [0 10 0 0 0 0 50 5; 
@@ -24,11 +24,11 @@ v_end = 15; % target velocity
 a_end = 0;
 
 global veh_front veh_behind
-veh_front = [40 10];
-veh_behind = [-80 15];
+veh_front = [80 10];
+veh_behind = [-60 15];
 
 % PLot
-t_sample = 0:1:10;
+t_sample = 0:0.2:10;
 s_front = veh_front(1) + veh_front(2)*t_sample;
 s_behind = veh_behind(1) + veh_behind(2)*t_sample;
 
@@ -72,6 +72,8 @@ end
 
 H_seg1 = w1*H0(:,:,1) + w2*H1(:,:,1) + w3*H2(:,:,1);
 H_seg2 = w1*(H0(:,:,2)-H0(:,:,1)) + w2*(H1(:,:,2)-H1(:,:,1)) + w3*(H2(:,:,2)-H2(:,:,1));
+
+T = ST_Results(i,8);
 
 H_final = blkdiag(H_seg1,H_seg2);
 
@@ -136,8 +138,8 @@ A = vertcat(A_sample, -A_sample);
 ub = vertcat(s_front',-s_behind');
 
 
-options = optimoptions('quadprog','Display','iter');
-C_new = quadprog(H_final,f_final,A,ub,Aeq,beq,[],[],[],options);
+options = optimoptions('quadprog','Display','iter','TolFun',1e-16,'TolCon',1e-16);
+[C_new,fval,exitflag,output,lambda] = quadprog(H_final,f_final,A_sample,s_front,Aeq,beq,[],[],[],options);
 
 s_ego = zeros(1,length(t_sample));
 for i = 1:length(t_sample)
@@ -167,6 +169,11 @@ hold on;
 plot(t_sample,s_ego,'o');
 hold on;
 plot(t_sample,s_ego_new);
+
+fval
+exitflag
+output
+
 
 
 
