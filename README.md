@@ -11,11 +11,11 @@ Pure C piecewise jerk path optimizer of Apollo for S-L Planning
 
 + Matlab quadprog path problem
 
-![](./Matlab/matlab.png)
+![](./Matlab/path.png)
 
 + Matlab quadprog speed problem
 
-  ![](./Matlab/QP_speed.png)
+  ![](./Matlab/speed.png)
 
 ### About *options* setting
 

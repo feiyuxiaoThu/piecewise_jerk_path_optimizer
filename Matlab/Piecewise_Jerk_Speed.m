@@ -1,179 +1,257 @@
-% ST QP
-%% Parameters
-clear;
+% Piecewise Jerk speed Problem
 clc;
+clear;
+%% Parameters
+tic
+global Nstep; % Num of Points
+global s_tol; % S Length
+global Nstep3;
+global ref_v;
+global delta_s;
+
+global v_ini 
+
+global Maxspeed Accmax Jerklimit;
+
+
+% QP Problem settings
+global w1 w2 w3;
+
+w1 = 1;
+w2 = 0.1;
+w3 = 1e2;
+
+
+Maxspeed = 30;
+Accmax = 4;
+Jerklimit = 0.5*delta_s;
+
+
 global st_seg_num % num of st curves 1 2 3
-st_seg_num = 2;
+st_seg_num = 3;
 
-% QP Weights
-global w1 w2 w3
-w1 = 0.5; % error with DP ST results
-w2 = 1; % acc
-w3 = 1e2; %  jerk
+global ST_C st_seg
+ST_C = [0 10 0 0 0 0 -25 15 0  0 0 0 -15 14 0  0 0 0];
+st_seg = [50 5;
+    125 10;
+    195 15];
 
-global ST_Results
-ST_Results = [0 10 0 0 0 0 50 5; 
-    -25 15 0  0 0 0 125 10];
 
-global s_ini v_ini a_ini s_end v_end a_end
+s_tol = st_seg(3,2);
+
+ref_v = ST_C(14); % ref velocity;
+
+delta_s = 0.5;
+
+Nstep = s_tol/delta_s + 1;
+
+Nstep3 = 3*Nstep;
+
+
+global s_ini  a_ini s_end v_end a_end
 s_ini = 0;
-v_ini = ST_Results(1,2);
+v_ini = ST_C(2);
 a_ini = 0;
-s_end = ST_Results(2,7);
-v_end = 15; % target velocity
+s_end = st_seg(3,1);
+v_end = ST_C(14); % target velocity
 a_end = 0;
 
 global veh_front veh_behind
 veh_front = [80 10];
 veh_behind = [-60 15];
 
-% PLot
-t_sample = 0:0.2:10;
-s_front = veh_front(1) + veh_front(2)*t_sample;
-s_behind = veh_behind(1) + veh_behind(2)*t_sample;
+%% Compute l_bound up and down
+l_upbound = zeros(Nstep,1);
+l_downbound = zeros(Nstep,1);
 
+s_sample = linspace(0,s_tol,Nstep);
 
-
-%% Target function
-H0 = zeros(6,6,st_seg_num); % distance (s-s_dp)^2
-H1 = zeros(6,6,st_seg_num); % acceleration
-H2 = zeros(6,6,st_seg_num); % jerk
-
-f1 = zeros(6,st_seg_num); % part 1 of f
-f2 = zeros(6,st_seg_num);
-
-for i = 1:st_seg_num
-    T = ST_Results(i,8); % T_seg
-    H0(:,:,i) = 2*[T T^2/2 T^3/3 T^4/4 T^5/5 T^6/6;
-        T^2/2 T^3/3 T^4/4 T^5/5 T^6/6 T^7/7;
-        T^3/3 T^4/4 T^5/5 T^6/6 T^7/7 T^8/8;
-        T^4/4 T^5/5 T^6/6 T^7/7 T^8/8 T^9/9;
-        T^5/5 T^6/6 T^7/7 T^8/8 T^9/9 T^10/10;
-        T^6/6 T^7/7 T^8/8 T^9/9 T^10/10 T^11/11];
-    
-    H1(:,:,i) = 2*[0 0 0 0 0 0;
-        0 0 0 0 0 0;
-        0 0  4*T 6*T^2 8*T^3 10*T^4;
-        0 0 6*T^2 12*T^3 18*T^4 24*T^5;
-        0 0 8*T^3 18*T^4 144*T^5/5 40*T^6;
-        0 0 10*T^4 24*T^5 40*T^6 400*T^7/7]; % acc
-    
-    H2(:,:,i) = 2* [0,0,0,0,0,0;
-        0,0,0,0,0,0;
-        0,0,0,0,0,0;
-        0,0,0,36*T,72*T^2,120*T^3;
-        0,0,0,72*T^2,192*T^3,360*T^4;
-        0,0,0,120*T^3,360*T^4,720*T^5];
-    
-    f1(:,i) = [T,T^2/2,T^3/3,T^4/4,T^5/5,T^6/6];
-    f2(:,i) = [T^2/2,T^3/3,T^4/4,T^5/5,T^6/6,T^7/7];
+for i = 1:Nstep
+    l_upbound(i) = veh_front(1) + veh_front(2)*s_sample(i);
+    l_downbound(i) = veh_behind(1) + veh_behind(2)*s_sample(i);
 end
 
 
-H_seg1 = w1*H0(:,:,1) + w2*H1(:,:,1) + w3*H2(:,:,1);
-H_seg2 = w1*(H0(:,:,2)-H0(:,:,1)) + w2*(H1(:,:,2)-H1(:,:,1)) + w3*(H2(:,:,2)-H2(:,:,1));
 
-T = ST_Results(i,8);
+%% Get ref_x and ref_v
 
-H_final = blkdiag(H_seg1,H_seg2);
+ref_x = zeros(Nstep,1);
 
-f_seg1 = ST_Results(1,1)*f1(:,1) + ST_Results(1,2)*f2(:,1);
-f_seg2 = ST_Results(2,1)*(f1(:,2)-f1(:,1)) + ST_Results(2,2)*(f2(:,2)-f2(:,1));
-
-f_final = -2*w1*vertcat(f_seg1,f_seg2);
-
-
-%% constraints
-% two segs for example
-
-t_seg = ST_Results(1,8);
-
-% segs equal
-Aeq1 = [1 t_seg t_seg^2 t_seg^3 t_seg^4 t_seg^5 -1 -t_seg -t_seg^2 -t_seg^3 -t_seg^4 -t_seg^5]; % s_left = s_right
-Aeq2 = [0 1 2*t_seg 3*t_seg^2 4*t_seg^3 5*t_seg^4 0 -1 -2*t_seg -3*t_seg^2 -4*t_seg^3 -5*t_seg^4]; % v_left = v_right
-Aeq3 = [0 0 2 6*t_seg 12*t_seg^2 20*t_seg^3 0 0 -2 -6*t_seg -12*t_seg^2 -20*t_seg^3];
-
-
-Aseg = vertcat(Aeq1,Aeq2,Aeq3);
-bseg = [0;0;0];
-
-% initial and final conditions
-
-%t_seg = 10; %ST_Results(2,8); % final time
-
-t_seg1 = ST_Results(2,8);
-Aini = [1 0 0 0 0 0;
-    0 1 0 0 0 0;
-    0 0 2 0 0 0];
-Aend = [
-    0 1 2*t_seg1 3*t_seg1^2 4*t_seg1^3 5*t_seg1^4;
-    0 0 2 6*t_seg1 12*t_seg1^2 20*t_seg1^3]; %1 t_seg1 t_seg1^2 t_seg1^3 t_seg1^4 t_seg1^5;
-
-
-
-%A_time = horzcat(Aini,zeros(3,6));
-A_time = blkdiag(Aini,Aend);
-b_time = [s_ini;v_ini;a_ini;v_end;a_end];
-
-Aeq = vertcat(Aseg,A_time);
-beq = vertcat(bseg,b_time);
-
-% upper and lower bounds for s
-% time_sample
-A_sample = zeros(length(t_sample),12);
-A_sample_speed = zeros(length(t_sample),12); % speed > 0 ds > 0
-for i = 1:length(t_sample)
-    T = t_sample(i);
-    if t_sample(i) < ST_Results(1,8)
-        A_sample(i,:) = [1 T T^2 T^3 T^4 T^5 0 0 0 0 0 0];
-        A_sample_speed(i,:) = [0 1 2*T 3*T^2 4*T^3 5*T^4 0 0 0 0 0 0];
+for i = 1:Nstep
+    if s_sample(i) <= st_seg(1,2)
+        ref_x(i) = ST_C(1) + ST_C(2)*s_sample(i);
+    elseif s_sample(i) <= st_seg(2,2)
+        ref_x(i) = ST_C(7) + ST_C(8)*s_sample(i);
     else
-        A_sample(i,:) = [0 0 0 0 0 0 1 T T^2 T^3 T^4 T^5];
-        A_sample_speed(i,:) = [0 0 0 0 0 0 0 1 2*T 3*T^2 4*T^3 5*T^4];
+        ref_x(i) = ST_C(13) + ST_C(14)*s_sample(i);
     end
 end
 
-A = vertcat(A_sample, -A_sample);
+x0 = zeros(Nstep3,1);
+x0(1:Nstep) = ref_x;
 
-ub = vertcat(s_front',-s_behind');
+%% Constrcuct QP constraints Matrix
+% P matrix in dense format 
+P = zeros(Nstep3,Nstep3);
+% cost vector c matrix
+c = zeros(Nstep3,1);
 
-
-options = optimoptions('quadprog','Display','iter','TolFun',1e-16,'TolCon',1e-16);
-[C_new,fval,exitflag,output,lambda] = quadprog(H_final,f_final,A_sample,s_front,Aeq,beq,[],[],[],options);
-
-s_ego = zeros(1,length(t_sample));
-for i = 1:length(t_sample)
-    if t_sample(i) <= 5 %ST_Results(1,8)
-        s_ego(i) = ST_Results(1,1) + ST_Results(1,2)*t_sample(i);
-    else
-        s_ego(i) = ST_Results(2,1) + ST_Results(2,2)*t_sample(i);
-    end
+for i = 1:Nstep
+    P(i,i) = 2*w1;
+    c(i) = -2*ref_x(i)*w1;
 end
 
-s_ego_new = zeros(1,length(t_sample));
-for i = 1:length(t_sample)
-    T = t_sample(i);
-    if T <= 5 %ST_Results(1,8)
-        s_ego_new(i) = C_new(1) + C_new(2)*T + C_new(3)*T^2 + C_new(4)*T^3 + C_new(5)*T^4 + C_new(6)*T^6;
-    else
-        s_ego_new(i) = C_new(7) + C_new(8)*T + C_new(9)*T^2 + C_new(10)*T^3 + C_new(11)*T^4 + C_new(12)*T^6;
-    end
+for i = Nstep+1:2*Nstep
+    P(i,i) = 2*w2;
+    c(i) = -2*ref_v*w2;
+end
+
+for i = 2*Nstep+1:Nstep3
+    P(i,i) = 2*w3;
+    %c(i) = 0;
+end
+
+% Aeq
+Aeq = zeros(2*Nstep+1,Nstep3);
+% Part 1
+for i = 1:Nstep-1
+    
+    j = i + Nstep;
+    Aeq(i,j) = -1;
+    Aeq(i,j+1) = 1;
+    
+    jj = i + 2*Nstep;
+    Aeq(i,jj) = -delta_s/2.0;
+    Aeq(i,jj+1) = -delta_s/2.0;
+end
+% Part 2
+for i = Nstep:2*Nstep-2
+    
+    j = i - Nstep + 1;
+    Aeq(i,j) = -1;
+    Aeq(i,j+1) = 1;
+    
+    jj = i + 1;
+    Aeq(i,jj) = -delta_s;
+    
+    jjj = i+Nstep+1;
+    Aeq(i,jjj) = -delta_s*delta_s/3.0;
+    Aeq(i,jjj+1) = -delta_s*delta_s/6.0;
+  
+end
+%Part 3
+Aeq(2*Nstep-1,1) = 1;
+Aeq(2*Nstep,Nstep+1) = 1;
+Aeq(2*Nstep+1,2*Nstep+1) = 1;
+
+% Beq
+beq = zeros(2*Nstep+1,1);
+
+beq(2*Nstep-1) = ref_x(1);
+beq(2*Nstep) = v_ini;
+beq(2*Nstep+1) = 0;
+
+% A
+
+A = zeros(8*Nstep-2,Nstep3);
+% A
+for i = 1:Nstep3
+    A(i,i) = 1;
+end
+
+for i = Nstep3+1:4*Nstep-1
+    j = i - Nstep;
+    A(i,j) = -1;
+    A(i,j+1) = 1;
+end
+
+% -A
+for i = 4*Nstep:7*Nstep-1
+    j = i - 4*Nstep + 1;
+    A(i,j) = -1;
+end
+
+for i = 7*Nstep:8*Nstep-2
+    j = i - 5*Nstep + 1;
+    A(i,j) = 1;
+    A(i,j+1) = -1;
 end
 
 
-figure(1);
-plot(t_sample,s_front);
-hold on;
-plot(t_sample,s_behind);
-hold on;
-plot(t_sample,s_ego,'o');
-hold on;
-plot(t_sample,s_ego_new);
+% ul
 
-fval
-exitflag
-output
+ul = zeros(8*Nstep-2,1); % lb < A < ub both in ul!
+for i = 1:Nstep
+    ul(i) = l_upbound(i);
+    ul(i+4*Nstep-1) = -l_downbound(i);
+end
 
+for i =Nstep+1:2*Nstep
+    ul(i) = Maxspeed;
+    ul(i+4*Nstep-1) = Maxspeed;
+end
 
+for i = 2*Nstep+1:3*Nstep
+    ul(i) = Accmax;
+    ul(i+4*Nstep-1) = Accmax; 
+end
+
+for i = 3*Nstep+1:4*Nstep-1
+    ul(i) = Jerklimit;
+    ul(i+4*Nstep-1) = Jerklimit;
+end
+toc
+opts = optimoptions('quadprog','Algorithm','active-set','Display','iter','Maxiterations',200);
+%opts = optimoptions(opts,'Maxiterations',200);
+
+[x,fval,exitflag,output,lambda] = quadprog(P,c,A,ul,Aeq,beq,[],[],x0,opts);
+
+vel_o = zeros(Nstep,1);
+vel_o(1) = v_ini;
+acc_o = zeros(Nstep,1);
+acc_o(1) = a_ini;
+jerk_o = zeros(Nstep,1);
+jerk = zeros(Nstep,1);
+for i=1:Nstep-1
+    vel_o(i+1) = (ref_x(i+1) - ref_x(i))/delta_s;
+    if abs(vel_o(i+1) - vel_o(i)) > 0.0001
+        acc_o(i) = (vel_o(i+1) - vel_o(i))/delta_s;
+    else
+        acc_o(i) = 0;
+    end
+    if abs(acc_o(i+1) - acc_o(i)) > 0.0001
+        jerk_o(i) = (acc_o(i+1) - acc_o(i))/delta_s;
+    else
+        jerk_o(i) = 0;
+    end
+    jerk(i) = (x(2*Nstep+i+1) - x(2*Nstep+i))/delta_s;
+end
+
+figure();
+subplot(3,1,1);
+plot(s_sample,ref_x);
+hold on;
+plot(s_sample,x(1:Nstep),'*');
+hold on;
+plot(s_sample,l_upbound);
+hold on;
+plot(s_sample,l_downbound);
+legend('original','op','upbound','lowbound','Location','NorthWest');
+title('s-t')
+subplot(3,1,2);
+plot(s_sample,acc_o);
+hold on;
+plot(s_sample,x(2*Nstep+1:3*Nstep),'+');
+legend('original','op','Location','NorthWest');
+title('Acc')
+
+subplot(3,1,3);
+plot(s_sample,jerk_o);
+hold on;
+plot(s_sample,jerk,'*');
+title('Jerk')
+legend('original','op','Location','NorthWest');
+% figure();
+% plot(s_sample,x(2*Nstep+1:3*Nstep),'+');
 
 

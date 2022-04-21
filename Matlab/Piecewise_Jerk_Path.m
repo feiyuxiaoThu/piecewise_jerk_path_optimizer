@@ -9,7 +9,7 @@ global Nstep3;
 global ref_v;
 global delta_s;
 
-global v_ini;
+global v_ini;a
 
 global Maxspeed Accmax Jerklimit;
 
