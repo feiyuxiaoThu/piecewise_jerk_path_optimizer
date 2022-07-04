@@ -63,6 +63,42 @@ extern "C"
 #define QP_CENTERING_CORRECTOR_STEP (1) /*!< Centering Corrector Step */
 #define QP_CENTERING_STEP (2) /*!< Centering Step */
 
+//Pre-define some datastructure
+//qp_real sigma_d = 0.0
+#define NSTEP (6)
+#define NSTEP3 (3*NSTEP)
+//#define t_tol (7.0) //7s
+//#define delta_t (0.5) // de = 0.1s
+#define safe_zone  (4.0) // safe gap can be ajusted
+#define MAXSPEED (33.3) // max_speed
+#define ACCMAX (2)
+#define JERKPARA 2 // ?
+#define  w1 (20.0)
+#define  w2 (10.0)
+#define  w3 (2.0)
+
+
+
+
+
+qp_real Q[NSTEP3][NSTEP3];
+qp_real Aeq[2*NSTEP + 1][NSTEP3];
+qp_real A[8*NSTEP -2][NSTEP3];
+
+
+typedef struct 
+{
+    qp_real x_print[NSTEP3];
+    qp_int exit_type;
+    qp_real Solve_time;
+    qp_real KKT_time;
+    qp_real LDL_time;
+    qp_real Diff;
+    qp_int Iterations;
+}Output_into;
+
+
+
 #ifdef __cplusplus
 } 
 #endif

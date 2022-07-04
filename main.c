@@ -7,9 +7,6 @@
 int main(int argc, char *argv[])
 {
 
-
-
-
     qp_real C0 = ST_Result[0];
     qp_real C1 = ST_Result[1];
     qp_real C2 = ST_Result[2];

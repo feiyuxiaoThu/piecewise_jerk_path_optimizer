@@ -39,6 +39,8 @@ static c_float ROUND_TO_ZERO_BELOW = (c_float)1.0; // e.g. ROUND_TO_ZERO_BELOW=R
  * Dense Matrices
  */
 
+c_int arr_ind(const c_int i_col, const c_int i_row, const c_int nrows, const c_int ncols, const enum MatFormat format);
+
 // Allocates a matrix and fills it using (rand()/RAND_MAX - 0.5) * RAND_INTERVAL
 c_float * random_dense_matrix(const c_int nrows, const c_int ncols, enum MatFormat format);
 
