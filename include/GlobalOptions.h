@@ -65,17 +65,17 @@ extern "C"
 
 //Pre-define some datastructure
 //qp_real sigma_d = 0.0
-#define NSTEP (6)
+#define NSTEP (21)
 #define NSTEP3 (3*NSTEP)
 //#define t_tol (7.0) //7s
 //#define delta_t (0.5) // de = 0.1s
 #define safe_zone  (4.0) // safe gap can be ajusted
 #define MAXSPEED (33.3) // max_speed
-#define ACCMAX (2)
-#define JERKPARA 2 // ?
+#define ACCMAX (3)
+#define JERKPARA 0.5 // ?
 #define  w1 (20.0)
-#define  w2 (10.0)
-#define  w3 (2.0)
+#define  w2 (40.0)
+#define  w3 (5.0)
 
 
 

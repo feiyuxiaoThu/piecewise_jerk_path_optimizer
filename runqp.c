@@ -1,8 +1,12 @@
 #include "qpSWIFT.h"
-#include "Matrices.h"
-
+//#include "Matrices.h"
+#include "GlobalOptions.h"
 #include <stdlib.h>
 #include "matrix_gen_utils.h"
+
+/* For reading csv files */
+#include<stdio.h>
+#include<stdlib.h>
 
 int main(){
     /* Parameters settings */
@@ -13,14 +17,14 @@ int main(){
     const qp_real ST_Results_Seg2[8] = {1.8821, 22.2034, -0.4456, 0.0471, -0.0016, 0, 163.2100, 7.6000};
     const qp_real ST_Results_Seg3[8] = {0,0,0,0,0,0,0,0};
     const c_int veh1_e = 1; // 1 exit ; 0 not exist
-    const c_float veh1_dis = -15.0 ; // distance
-    const c_float veh1_vel = 10.0; // velocity
+    const c_float veh1_dis = -15.0; // distance
+    const c_float veh1_vel = 18.0; // velocity
     const c_int veh2_e = 1;
-    const c_float veh2_dis = 100.0;
-    const c_float veh2_vel = 25.0;
+    const c_float veh2_dis = 60.0;
+    const c_float veh2_vel = 18.0;
     const c_int veh3_e = 1;
-    const c_float veh3_dis = 200.0;
-    const c_float veh3_vel = 30.0;
+    const c_float veh3_dis = 40;
+    const c_float veh3_vel = 22.0;
 
     /* qp_problem settings */
     qp_real t_tol = 7.0;
@@ -66,7 +70,7 @@ int main(){
     c_float veh3_v = veh3_vel;
 
     c_float veh_len = safe_zone;
-    c_float ref_v = v_final;
+    c_float ref_v = v_final; // ? 
 
     // S Bound
     c_float s_front[NSTEP];
@@ -76,10 +80,18 @@ int main(){
     //ref line
     c_float ref_s[NSTEP];
 
+    //For Plot
+    c_float ref_vel[NSTEP];
+    c_float ref_a[NSTEP];
+
     if (st_seg_num == 1){
         for(int i = 0; i<NSTEP; i++){
             double t = i*delta_t;
             ref_s[i] = ST_seg1[0] + ST_seg1[1]*t + ST_seg1[2]*t*t + ST_seg1[3]*pow(t,3) + ST_seg1[4]*pow(t,4);
+            
+            //For Plot
+            ref_vel[i] = ST_seg1[1] + 2*ST_seg1[2]*t + 3*ST_seg1[3]*pow(t,2) + 4*ST_seg1[4]*pow(t,3);
+            ref_a[i] = 2*ST_seg1[2] + 6*ST_seg1[3]*t + 12*ST_seg1[4]*pow(t,2);
         }
     }
     else if (st_seg_num == 2){
@@ -87,9 +99,16 @@ int main(){
             double t = i*delta_t;
             if(t<=ST_seg1[7]){
                 ref_s[i] = ST_seg1[0] + ST_seg1[1]*t + ST_seg1[2]*t*t + ST_seg1[3]*pow(t,3) + ST_seg1[4]*pow(t,4);
+                //For Plot
+                ref_vel[i] = ST_seg1[1] + 2*ST_seg1[2]*t + 3*ST_seg1[3]*pow(t,2) + 4*ST_seg1[4]*pow(t,3);
+                ref_a[i] = 2*ST_seg1[2] + 6*ST_seg1[3]*t + 12*ST_seg1[4]*pow(t,2);
             }
             else{
                 ref_s[i] = ST_seg2[0] + ST_seg2[1]*t + ST_seg2[2]*t*t + ST_seg2[3]*pow(t,3) + ST_seg2[4]*pow(t,4);
+
+                //For Plot
+                ref_vel[i] = ST_seg2[1] + 2*ST_seg2[2]*t + 3*ST_seg2[3]*pow(t,2) + 4*ST_seg2[4]*pow(t,3);
+                ref_a[i] = 2*ST_seg2[2] + 6*ST_seg2[3]*t + 12*ST_seg2[4]*pow(t,2);
             }
         }
     }
@@ -98,12 +117,24 @@ int main(){
             double t = i*delta_t;
             if(t<=ST_seg1[7]){
                 ref_s[i] = ST_seg1[0] + ST_seg1[1]*t + ST_seg1[2]*t*t + ST_seg1[3]*pow(t,3) + ST_seg1[4]*pow(t,4);
+
+                //For Plot
+                ref_vel[i] = ST_seg1[1] + 2*ST_seg1[2]*t + 3*ST_seg1[3]*pow(t,2) + 4*ST_seg1[4]*pow(t,3);
+                ref_a[i] = 2*ST_seg1[2] + 6*ST_seg1[3]*t + 12*ST_seg1[4]*pow(t,2);
             }
             else if(t>=ST_seg2[7]){
                 ref_s[i] = ST_seg3[0] + ST_seg3[1]*t + ST_seg3[2]*t*t + ST_seg3[3]*pow(t,3) + ST_seg3[4]*pow(t,4);
+
+                //For Plot
+                ref_vel[i] = ST_seg3[1] + 2*ST_seg3[2]*t + 3*ST_seg3[3]*pow(t,2) + 4*ST_seg3[4]*pow(t,3);
+                ref_a[i] = 2*ST_seg3[2] + 6*ST_seg3[3]*t + 12*ST_seg3[4]*pow(t,2);
             }
             else{
                 ref_s[i] = ST_seg2[0] + ST_seg2[1]*t + ST_seg2[2]*t*t + ST_seg2[3]*pow(t,3) + ST_seg2[4]*pow(t,4);
+
+                //For Plot
+                ref_vel[i] = ST_seg2[1] + 2*ST_seg2[2]*t + 3*ST_seg2[3]*pow(t,2) + 4*ST_seg2[4]*pow(t,3);
+                ref_a[i] = 2*ST_seg2[2] + 6*ST_seg2[3]*t + 12*ST_seg2[4]*pow(t,2);
             }
         }
     }
@@ -131,8 +162,9 @@ int main(){
         else{
             s_front[i] = 10000.0;
         }
+
         if(veh3_exist == 1){
-            s_egolanefront[i] = veh3_s + veh3_v*delta_t;
+            s_egolanefront[i] = veh3_s + veh3_v*delta_t*i;
         }
         else{
             s_egolanefront[i] = 10000.0;
@@ -272,6 +304,7 @@ int main(){
         beq[i] = 0;
     }
 
+    // Should fix the v_final and s_final ???
     beq[2*NSTEP-1] = v_ini;
 
     /* Inequality Constraint A matrix in dense format */
@@ -312,16 +345,12 @@ int main(){
     c_float* G = (c_float *)malloc( ncols3 * nrows3 * sizeof(c_float)); //???
     for(c_int i_row = 0; i_row < nrows3; i_row++){
         for(c_int i_col = 0; i_col < ncols3; i_col++){
-            printf("%f,",A[i_row][i_col]);
-            //printf('%ld',i_row);
-            //printf('%ld',i_col);
             c_int index = arr_ind(i_col,i_row,nrows3,ncols3,format);
-            //printf('%ld,',i_col);
             G[arr_ind(i_col,i_row,nrows3,ncols3,format)] = A[i_row][i_col];
         }
     }
 
-    printf('%ld,',nrows3);
+   
 
     csc* csc_matrix_A = dense_to_csc_matrix(G, 8*NSTEP-2, NSTEP3, RowMajor);
 
@@ -363,17 +392,14 @@ int main(){
         ul[i+4*NSTEP-1] = JERKLIMIT;
     }
 
-    printf("%ld,", nrows1);
-    printf("%ld,", nrows2);
-    printf("%ld,", nrows3);
 
 
 
     /* Solving Process */
     QP *myQP;
    
-    myQP = QP_SETUP(NSTEP3, 8*NSTEP - 2, 2*NSTEP + 1, csc_matrix_Q->p, csc_matrix_Q->i, csc_matrix_Q->x, csc_matrix_A->p,\
-    csc_matrix_A->i, csc_matrix_A->x,csc_matrix_Aeq->p,csc_matrix_Aeq->i,csc_matrix_Aeq->x,c,ul,beq,sigma_d,NULL);
+    myQP = QP_SETUP(NSTEP3, 8*NSTEP - 2, 2*NSTEP + 1, csc_matrix_Q->p, csc_matrix_Q->i, csc_matrix_Q->x, csc_matrix_Aeq->p,\
+    csc_matrix_Aeq->i, csc_matrix_Aeq->x,csc_matrix_A->p,csc_matrix_A->i,csc_matrix_A->x,c,ul,beq,sigma_d,NULL);
 
 
 
@@ -412,8 +438,57 @@ int main(){
 
     printf("Solution\n");
 
-    for (int i = 0; i < NSTEP; ++i)
-        printf("x[%d]:%lf\n", i, myQP->x[i]);
+    //Write to file to visualize
+    for (int i = 0; i < NSTEP; ++i){
+        printf("x[%d]:%lf  ", i, myQP->x[i]);
+        printf("v[%d]:%lf  ", i, myQP->x[i+NSTEP]);
+        printf("a[%d]:%lf\n", i, myQP->x[i+2*NSTEP]);
+    }
+
+    FILE *QP_res = fopen("res.csv", "w+");
+    if(QP_res == NULL){
+        fprintf(stderr, "fopen() failed \n");
+        exit(EXIT_FAILURE);
+    }
+
+    FILE *obs_info = fopen("obs.csv", "w+");
+    if(obs_info == NULL){
+        fprintf(stderr, "fopen() failed \n");
+        exit(EXIT_FAILURE);
+    }
+
+    c_float jerk_original[NSTEP];
+    c_float jerk_opt[NSTEP];
+
+    jerk_original[0] = 0.0;
+    jerk_opt[0] = 0.0;
+
+    for(int i=1; i<NSTEP; i++){
+        jerk_original[i] = (ref_a[i] - ref_a[i-1])/delta_t;
+        jerk_opt[i] = (myQP->x[i+2*NSTEP-1] - myQP->x[i+2*NSTEP])/delta_t;
+    }
+
+    fprintf(QP_res, "time,original_dis,original_vel,original_acc,original_jerk,op_dis,op_vel,op_acc,op_jerk\n");
+    for (int i = 0; i < NSTEP; ++i){
+        fprintf(QP_res, "%f,%f,%f,%f,%f,%f,%f,%f,%f\n", i*delta_t, ref_s[i],ref_vel[i],ref_a[i],jerk_original[i] ,myQP->x[i], myQP->x[i+NSTEP], myQP->x[i+2*NSTEP],jerk_opt[i]);
+    } 
+
+    fclose(QP_res);
+
+    /*
+    c_float s_front[NSTEP];
+    c_float s_behind[NSTEP];
+    c_float s_egolanefront[NSTEP];
+    */
+    fprintf(obs_info, "time,s_front,s_behind,s_egolanefront\n");
+    for (int i = 0; i < NSTEP; ++i){
+        fprintf(obs_info, "%f,%f,%f,%f\n", i*delta_t, s_front[i],s_behind[i],s_egolanefront[i]);
+    } 
+
+    fclose(obs_info);
+
+
+        
 
     QP_CLEANUP(myQP);
 
