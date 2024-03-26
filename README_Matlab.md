@@ -91,4 +91,4 @@ With the result:
 - [x] Construct a typical QP demo using the sparse_matrix_conversion Tool for creating sparse matrix.
 - [x] Construct a typical Piecewise_Jerk_Path QP problem using Matlab quadprog function.
 - [x] Construct a typical Piecewise_Jerk_Speed QP problem using Matlab quadprog function.
-- [ ] Perform  piecewise_jerk_path_optimizer task in pure c code.
+- [x] Perform  piecewise_jerk_path_optimizer task in pure c code.
